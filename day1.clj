@@ -3,6 +3,9 @@
 
 (def +puzzle+ (->> "day1.input" slurp str/split-lines (map #(Integer/parseInt %))))
 
+;;; turns out there is a `partition` argument that could have done the
+;;; same thing!
+
 (defn sliding-window [n seq]
   (if (-> seq count (> n))
     (lazy-seq 
