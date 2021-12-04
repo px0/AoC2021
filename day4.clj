@@ -32,7 +32,7 @@
 (def row-num 5)
 
 
-(defn make-board-cols
+(defn -make-board-cols
   "Parse raw strings into board columns"
   [{raw-cols :raw :as board}]
   (let [cols (for [col raw-cols]
@@ -43,7 +43,7 @@
            :cols cols
            :cols-set (map set cols))))
 
-(defn make-board-rows
+(defn -make-board-rows
   "Figure out the board rows by transposing the columns"
   [{cols :cols :as board}]
   (let [rows (apply (partial map list) cols)]
@@ -55,59 +55,63 @@
   "Create board datastructure from column strings"
   [col-strs]
   (-> {:raw col-strs}
-      (make-board-cols)
-      (make-board-rows)
+      (-make-board-cols)
+      (-make-board-rows)
       ((fn [board] 
          (assoc board
                 :rows-cols-set (set/union (:rows-set board) (:cols-set board))
                 :all-numbers (set (flatten (:cols board))))))))
 
-(defn parse-boards
+(defn -parse-boards
   "Create boards from input"
   [input]
   (cons (make-board (take row-num input))
         (when-let [remainder (seq (drop (inc row-num) input))]
-          (parse-boards remainder))))
+          (-parse-boards remainder))))
 
 (defn parse-input
   "Parse numbers and boards from the input. Use this one directly."
   [input]
-  {:numbers (map #(Integer/parseInt %) (str/split (first input) #","))
-   :boards (parse-boards (drop 2 input))})
+  {:bingo-numbers (map #(Integer/parseInt %) (str/split (first input) #","))
+   :boards (-parse-boards (drop 2 input))})
 
 
 (defn bingo?
-  "Checks the matching row/col if bingo, else nil"
-  [numbers {:keys [rows-cols-set all-numbers]}]
-  (when-let [matches (set/intersection (set numbers) all-numbers)]
-    (when (>= (count matches) 5)
-      (letfn [(match-reduce-fn [_ col-or-row]
-                (when (set/subset? col-or-row (set numbers))
-                  (reduced col-or-row)))]
-        (reduce match-reduce-fn rows-cols-set)))))
+  "Checks the matching row/col of a board if it includes all the bingo-numbers so far"
+  [bingo-numbers {:keys [rows-cols-set]}]
+    (reduce (fn [_ col-or-row]
+              (when (set/subset? col-or-row (set bingo-numbers))
+                (reduced col-or-row))) rows-cols-set))
 
-(defn calculate-score-part1 [{:keys [winning-board winning-streak winning-number]}]
+(defn calculate-score-part1
+  "Start by finding the sum of all unmarked numbers on that board; in this case, the sum is 188. Then, multiply that sum by the number that was just called when the board won"
+  [{:keys [winning-board winning-sequence winning-number]}]
   (let [{:keys [all-numbers]} winning-board
-        unmarked-numbers (set/difference (set all-numbers) (set winning-streak))]
-    (prn winning-number unmarked-numbers (apply + unmarked-numbers))
+        unmarked-numbers (apply disj (set all-numbers) winning-sequence)]
+    (prn 'winnum winning-number )
+    (prn 'winsequence winning-sequence (count winning-sequence))
+    (prn 'unmarked-numbers unmarked-numbers (count unmarked-numbers))
     (* winning-number
-       (apply + unmarked-numbers))))
+       (reduce + unmarked-numbers))))
 
 ;;; part 1 - find the winning board
 (->>
- (let [{:keys [numbers boards]} (parse-input +puzzle+)]
-   (def numbers numbers)
-   (def boards boards)
-   (for [idx (range (count numbers))
-         :let [current-numbers (set (take idx numbers))]
+ (let [{:keys [bingo-numbers boards]} (parse-input +puzzle+)]
+   (def dbg-numbers bingo-numbers) ;debugging
+   (def dbg-boards boards) ;debugging
+   (for [idx (range (count bingo-numbers))
          board boards
-         :when (bingo? current-numbers board)]
+         :let [current-sequence (take idx bingo-numbers)
+               bingo-rowcol (bingo? current-sequence board)]
+         :when bingo-rowcol]
+     
      {:winning-board board
       :winning-idx idx
-      :winning-number (nth numbers (dec idx))
-      :winning-streak (take idx numbers)
-      :winning-row-col (bingo? current-numbers board)}))
+      :winning-number (nth bingo-numbers (dec idx)) ; "take 6 => index 0..5"
+      :winning-sequence current-sequence
+      :winning-row-col bingo-rowcol}))
  (first)
- ;; (def winners)
+ (#(do (def dbg-winner %) %))
  (calculate-score-part1)
+ (#(do (prn 'score %) %))
  );; => 42351
