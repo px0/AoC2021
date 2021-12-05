@@ -41,7 +41,7 @@
                                 (map #(Integer/parseInt %))))]
     (assoc board
            :cols cols
-           :cols-set (map set cols))))
+           :cols-set (set (map set cols)))))
 
 (defn -make-board-rows
   "Figure out the board rows by transposing the columns"
@@ -49,7 +49,7 @@
   (let [rows (apply (partial map list) cols)]
     (assoc board
            :rows rows
-           :rows-set (map set rows))))
+           :rows-set (set (map set rows)))))
 
 (defn make-board
   "Create board datastructure from column strings"
@@ -60,7 +60,9 @@
       ((fn [board] 
          (assoc board
                 :rows-cols-set (set/union (:rows-set board) (:cols-set board))
-                :all-numbers (set (flatten (:cols board))))))))
+                :all-numbers (set (flatten (:cols board))))))
+      (dissoc :cols :rows :rows-set :cols-set) ;cleanup
+      ))
 
 (defn -parse-boards
   "Create boards from input"
@@ -77,18 +79,20 @@
 
 
 (defn bingo?
-  "Checks the matching row/col of a board if it includes all the bingo-numbers so far"
+  "Checks the rows and columns of a board if it includes all the bingo-numbers so far"
   [bingo-numbers {:keys [rows-cols-set]}]
-    (reduce (fn [_ col-or-row]
-              (when (set/subset? col-or-row (set bingo-numbers))
-                (reduced col-or-row))) rows-cols-set))
+  (reduce (fn [_ col-or-row]
+            (when (set/subset? col-or-row (set bingo-numbers))
+              (reduced col-or-row)))
+          nil
+          rows-cols-set))
 
 (defn calculate-score-part1
-  "Start by finding the sum of all unmarked numbers on that board; in this case, the sum is 188. Then, multiply that sum by the number that was just called when the board won"
+  "Start by finding the sum of all unmarked numbers on that board; Then, multiply that sum by the number that was just called when the board won"
   [{:keys [winning-board winning-sequence winning-number]}]
   (let [{:keys [all-numbers]} winning-board
         unmarked-numbers (apply disj (set all-numbers) winning-sequence)]
-    (prn 'winnum winning-number )
+    (prn 'winnum winning-number)
     (prn 'winsequence winning-sequence (count winning-sequence))
     (prn 'unmarked-numbers unmarked-numbers (count unmarked-numbers))
     (* winning-number
@@ -104,7 +108,6 @@
          :let [current-sequence (take idx bingo-numbers)
                bingo-rowcol (bingo? current-sequence board)]
          :when bingo-rowcol]
-     
      {:winning-board board
       :winning-idx idx
       :winning-number (nth bingo-numbers (dec idx)) ; "take 6 => index 0..5"
@@ -114,4 +117,32 @@
  (#(do (def dbg-winner %) %))
  (calculate-score-part1)
  (#(do (prn 'score %) %))
- );; => 42351
+ );; => 23177
+
+
+;;; part 2 - find the last winning board
+(->>
+ (let [{:keys [bingo-numbers boards]} (parse-input +puzzle+)
+       winning-boards (atom #{})]
+   (def dbg-numbers bingo-numbers) ;debugging
+   (def dbg-boards boards) ;debugging
+   (for [idx (range (count bingo-numbers))
+         board boards
+         :let [current-sequence (take idx bingo-numbers)
+               bingo-rowcol (bingo? current-sequence board)]
+         :when (and (not (contains? @winning-boards board))
+                    bingo-rowcol)]
+     (do
+     ;; (println 'BINGO (:raw board) '-> bingo-rowcol 'seq current-sequence)
+       (swap! winning-boards conj board) 
+       (def dbg-winning-boards winning-boards)
+       {:winning-board board
+        :winning-idx idx
+        :winning-number (nth bingo-numbers (dec idx)) ; "take 6 => index 0..5"
+        :winning-sequence current-sequence
+        :winning-row-col bingo-rowcol})))
+ (last)
+ (#(do (def dbg-winner %) %))
+ (calculate-score-part1)
+ (#(do (prn 'score %) %)))
+
