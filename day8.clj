@@ -54,26 +54,24 @@ gcafb gcf dcaebfg ecagb gf abcdeg gaef cafbge fdbac fegbdc | fgae cfgab fg bagce
                seven #{a c f}
                four #{c b d f}
                eight #{a e c g b d f}
-
                two #{a c d e g}
                three #{a c d f g}
                five #{a g b d f}
                zero #{a e c g b f}
                six #{a e g b d f}
                nine #{a c g b d f}]
-
          :when  (= #{zero one two three four five six seven eight nine}
                    (set (map set uniques)))]
-     {six 6,
+     {zero 0,
       one 1,
-      zero 0,
-      eight 8,
-      five 5,
+      two 2,
       three 3,
       four 4,
-      nine 9,
-      two 2,
-      seven 7})))
+      five 5,
+      six 6,
+      seven 7
+      eight 8,
+      nine 9})))
 
 (defn translate [lookup-key output]
   (utils/parse-int (apply str (map lookup-key (map set output)))))
@@ -83,8 +81,7 @@ gcafb gcf dcaebfg ecagb gf abcdeg gaef cafbge fdbac fegbdc | fgae cfgab fg bagce
                str/split-lines
                (map (fn [line]
                       (->> (str/split line #" \| ")
-                          (map 
-                          #(str/split % #" ")))))))
+                          (map #(str/split % #" ")))))))
 
 (defn part2 [lines]
   (reduce + (map (fn [[uniques output]]
