@@ -48,13 +48,15 @@
 ;;; part 2
 (defn find-basin-at-pos
   ([grid pos]
-   (find-basin-at-pos #{} grid pos))
+   (let [visited (atom #{})]
+     (find-basin-at-pos visited grid pos)))
 
   ([visited grid [x y]]
    (when-not (or (contains? #{nil 9} (val-at grid [x y]))
-                 (contains? visited [x y]))
+                 (contains? @visited [x y]))
+     (swap! visited conj [x y])
      (set (cons [x y]
-                (mapcat (partial find-basin-at-pos (conj visited [x y]) grid)
+                (mapcat (partial find-basin-at-pos visited grid)
                         [[(inc x) y]
                          [(dec x) y]
                          [x       (inc y)]
@@ -72,47 +74,16 @@
       (map count)
       (reduce *))
 
-
+;; aha! Shared cache!
 (let [visited (atom #{})]
-(->>  (for [y (range (count +puzzle+))
-            x (range (count (first +puzzle+)))
-            :when (not (contains? @visited [x y]))
-            :let [basin (find-basin-at-pos +puzzle+ [x y])]]
-        (do
-          (swap! visited (partial set/union basin))
-          (prn 'visited-count (count @visited))
-        basin)
-        )
-      (remove nil?)
-      (set)
-      (sort-by count >)
-      (take 3)
-      (map count)
-      (reduce *)))
-
-;; unfinished
-
-(loop [x 0
-       y 0
-       visited #{}
-       basins #{}]
-  (if (= [x y] [(count (first +puzzle+) (count +puzzle+)])
-         basins
-         
-  (if-not (contains? visited [x y])
-    
-    (recur (if (= x (count (first +puzzle+))) 0 (inc x))
-           (if (= x (count (first +puzzle+))) (inc y) y)
-           )))
-  (let [new-basin (find-basin-at-pos +puzzle+ [x y])]
-    )
-  )
-(->>  (for [y (range (count +puzzle+))
-            x (range (count (first +puzzle+)))]
-        (find-basin-at-pos +puzzle+ [x y]))
-      (remove nil?)
-      (set)
-      (sort-by count >)
-      (take 3)
-      (map count)
-      (reduce *))
+  (->>  (for [y (range (count +puzzle+))
+              x (range (count (first +puzzle+)))
+              :when (not (contains? @visited [x y]))
+              :let [basin (find-basin-at-pos visited +puzzle+ [x y])]]
+          basin)
+        (remove nil?)
+        (set)
+        (sort-by count >)
+        (take 3)
+        (map count)
+        (reduce *)));; => 1317792
