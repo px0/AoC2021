@@ -34,8 +34,8 @@
           (neighbours grid pos))
     pos))
 
-(defn risk-rating [val]
-  (inc val))
+(defn risk-rating [grid pos]
+  (inc (val-at grid pos)))
 
 
 ;;; part 1
@@ -43,7 +43,7 @@
          (for [y (range (count +puzzle+))
                       x (range (count (first +puzzle+)))
                       :when (low-point? +puzzle+ [x y])]
-                  (inc (val-at +puzzle+ [x y]))));; => 436
+                  (risk-rating +puzzle+ [x y])));; => 436
 
 ;;; part 2
 (defn find-basin-at-pos
@@ -63,18 +63,6 @@
                          [x       (dec y)]]))))))
 
 
-;; elegant & works but slow
-(->>  (for [y (range (count +puzzle+))
-            x (range (count (first +puzzle+)))]
-        (find-basin-at-pos +puzzle+ [x y]))
-      (remove nil?)
-      (set)
-      (sort-by count >)
-      (take 3)
-      (map count)
-      (reduce *))
-
-;; aha! Shared cache!
 (let [visited (atom #{})]
   (->>  (for [y (range (count +puzzle+))
               x (range (count (first +puzzle+)))
