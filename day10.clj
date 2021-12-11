@@ -1,5 +1,5 @@
 (ns day10
-  (:require utils
+  (:require [utils]
             [clojure.string :as str]
             [clojure.set :as set]))
 
@@ -28,39 +28,25 @@
              \} 1197
              \> 25137})
 
-(defn parse
-  ([[next-sym & rest-syms]]
-   (parse rest-syms next-sym []))
 
-  ([[next-sym & rest-syms] sym stack]
+(defn parse [line]
+  (let [*opensym-stack (atom '())
+        openings (set (keys mapping))
+        closings (set (vals mapping))]
+    (doseq [sym line]
+      (cond
+        (contains? openings sym)
+        (swap! *opensym-stack conj sym)
 
-   (let [expected-closing (mapping sym)
-         openings (set (keys mapping))]
-;;     (prn 'sym sym  'expc expected-closing 'next next-sym '& rest-syms)
-
-     (cond
-       (contains? openings next-sym)
-       (->
-        (parse rest-syms next-sym (conj stack sym))
-        (parse sym stack))
-
-       (= expected-closing next-sym)
-       (if (and (empty? stack)
-                (empty? rest-syms))
-         :success
-         (if (empty? stack)
-           (parse rest-syms)
-           rest-syms))
-
-       (empty? rest-syms)
-       (throw (ex-info "Unfinished" {:type :unfinished}))
-
-       :else
-       (do
-         (throw (ex-info (str "Expected " expected-closing " from " sym " but got " next-sym " instead")
-                         {:type :error
-                          :symbol next-sym}))
-         rest-syms)))))
+        (contains? closings sym)
+        (if (= sym (mapping (peek @*opensym-stack)))
+          (swap! *opensym-stack pop)
+          (throw (ex-info (str "Expected " (mapping (peek @*opensym-stack))
+                               " but got " sym " instead")
+                          {:type :error
+                           :symbol sym})))))
+    ;; return missing closers
+    @*opensym-stack))
 
 
 ;;; part 1
@@ -68,47 +54,40 @@
  (for [line +puzzle+]
    (try
      (prn line)
-     (prn 'line (parse line))
+     (parse line)
+     0 ;; ignore retval
 
      (catch Exception e
        (let [data (ex-data e)]
-         (prn 'exc data)
+         (println (.getMessage e))
          (get points (get data :symbol) 0)))))
  (reduce +));; => 392043
 
 
 ;;; part 2
+(defn score-closers [closers]
+  (let [score {\) 1
+               \] 2
+               \} 3
+               \> 4}]
+    (reduce (fn [total val]
+              (->> total
+                   (* 5)
+                   (+ (* (score val))))) 0 closers)))
 
-(defn parse
-  ([[next-sym & rest-syms]]
-   (parse rest-syms next-sym []))
+(defn middle-val [l]
+  (nth l (quot (count l) 2)))
 
-  ([[next-sym & rest-syms] sym stack]
-
-   (let [expected-closing (mapping sym)
-         openings (set (keys mapping))]
-;;     (prn 'sym sym  'expc expected-closing 'next next-sym '& rest-syms)
-
-     (cond
-       (contains? openings next-sym)
-       (->
-        (parse rest-syms next-sym (conj stack sym))
-        (parse sym stack))
-
-       (= expected-closing next-sym)
-       (if (and (empty? stack)
-                (empty? rest-syms))
-         :success
-         (if (empty? stack)
-           (parse rest-syms)
-           rest-syms))
-
-       (empty? rest-syms)
-       
-
-       :else
-       (do
-         (throw (ex-info (str "Expected " expected-closing " from " sym " but got " next-sym " instead")
-                         {:type :error
-                          :symbol next-sym}))
-         rest-syms)))))
+(->>
+ (for [line +puzzle+]
+   (try
+     (let [opening-stack (parse line)
+           missing (map mapping opening-stack)]
+       (println line "- Complete by adding " (apply str missing))
+       (score-closers missing))
+     (catch Exception _
+       nil)))
+ (remove nil?)
+ (sort)
+ (middle-val)
+ );; => 1605968119
