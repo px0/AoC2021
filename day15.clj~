@@ -1,0 +1,128 @@
+(ns day15
+  (:require [utils]
+            [clojure.string :as str]
+            [clojure.set :as set]))
+
+
+
+
+(def +p+ "1163751742
+1381373672
+2136511328
+3694931569
+7463417111
+1319128137
+1359912421
+3125421639
+1293138521
+2311944581")
+
+(defn grid-dimension [s]
+  (let [[fst & _ :as lines] (str/split-lines s)]
+    [(count fst) (count lines)]))
+  
+(defn grid->map [s]
+  (into (hash-map)
+        (let [lines (str/split-lines s)]
+          (for [x (range (count (first lines)))
+                y (range (count lines))]
+            [[x y] (-> (nth lines y)
+                       (#(.charAt % x))
+                       (str)
+                       (utils/parse-int))]))))
+
+(defn print-grid
+  ([grid]
+   (let [wh (Math/sqrt (count (keys grid)))]
+     (print-grid grid wh wh)))
+   
+  ([grid w h]
+   (println
+    (apply str
+           (interpose "\n"
+                      (for [y (range h)]
+                        (apply str (for [x (range w)]
+                                     (format "%x" (grid [x y])))))))
+    "\n")))
+
+ (def gridmap
+  (grid->map +p+))
+
+(defn path-cost* [gridmap path]
+  (reduce + (map gridmap path)))
+
+(def path-cost (memoize path-cost*))
+
+
+(defn find-path [[x y :as pos] path pathcost gridmap goal-pos *best-path]
+  ;;(prn path)
+  
+  (if (= pos goal-pos)
+    (do
+      ;;(prn 'foundpath)
+      (when (or (nil? @*best-path)
+                (< pathcost @*best-path))
+        (reset! *best-path pathcost)))
+
+    (when (or (nil? @*best-path)
+              (< pathcost @*best-path))
+      (let [candidates [[(inc x) y]
+                        [(dec x) y]
+                        [x (inc y)]
+                        ;; [x (dec y)]
+                        ]
+            candidates' (->> candidates
+                             (remove (partial contains? (set path)))
+                             (filter (partial contains? gridmap)))]
+        (doseq [c candidates']
+          (find-path c
+                     (conj path c)
+                     (+ pathcost (gridmap c))
+                     gridmap
+                     goal-pos
+                     *best-path))))))
+
+
+(defn find-best-path [gridmap goal-pos *best-path]
+  (loop [[cur & stack] [[[0 0] [] 0]]]
+    (prn 'cur  cur)
+    (let [[[x y :as pos] path pathcost] cur]
+
+      (prn 'pos pos '-> path)
+
+      (when (and (= pos goal-pos)
+                 (or (nil? @*best-path)
+                     (< pathcost @*best-path)))
+        (prn 'foundpath path)
+        (reset! *best-path pathcost))
+
+      (let [candidates (for [c [[(inc x) y]
+                                [x (inc y)]
+                                [(dec x) y]
+                                ;; [x (dec y)]
+                                ]
+                             :when (contains? gridmap c)
+                             :when (not (contains? (set path) c))
+                             :let [_ (prn  'c c)]]
+                         [c
+                          (conj path c)
+                          (+ pathcost (gridmap c))])
+
+            new-stack (if (or (nil? @*best-path)
+                              (< pathcost @*best-path))
+                        (into stack candidates)
+                        stack)]
+        (when-not (empty? new-stack)
+          (recur new-stack))))))
+
+
+(def +p+ (slurp "day15.input"))
+
+  (let [[dim-x dim-y] (grid-dimension +p+)
+      *best-path (atom nil)
+      gridmap (grid->map +p+)]
+  (find-best-path gridmap
+                  [(dec dim-x) (dec dim-y)] ; starts from 0
+                  *best-path)
+
+  {:cost @*best-path})
